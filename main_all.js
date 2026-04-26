@@ -57,28 +57,51 @@ async function loadFolders(path, containerId) {
         }
     }
 }
+
+// ===== TẠO THUMBNAIL TỪ VIDEO =====
+function createThumbnail(videoUrl) {
+    return new Promise((resolve) => {
+        const video = document.createElement("video");
+        video.src = videoUrl;
+        video.crossOrigin = "anonymous";
+        video.muted = true;
+        video.playsInline = true;
+
+        video.addEventListener("loadeddata", () => {
+            const canvas = document.createElement("canvas");
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            const thumb = canvas.toDataURL("image/jpeg");
+            resolve(thumb);
+        });
+
+        video.addEventListener("error", () => {
+            resolve(""); // fallback nếu lỗi
+        });
+    });
+}
 async function loadVideo(path, containerId) {
     const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
-    
-    const res = await fetch(url);
+     const res = await fetch(url);
     if (!res.ok) {
         console.error("API lỗi:", res.status);
         return;
     }
 
     const items = await res.json();
-    if (!Array.isArray(items)) return;
+    const container = document.getElementById("video-container");
 
-    const container = document.getElementById(containerId);
-    container.innerHTML = ""; // clear
-
-    // 🔥 Lọc + sort t1 → t9
+    // lọc mp4 + sort t1 -> t9
     const videos = items
         .filter(item => item.type === "file" && item.name.endsWith(".mp4"))
         .sort((a, b) => {
-            const numA = parseInt(a.name.match(/\d+/)?.[0] || 0);
-            const numB = parseInt(b.name.match(/\d+/)?.[0] || 0);
-            return numA - numB;
+            const n1 = parseInt(a.name.match(/\d+/)?.[0] || 0);
+            const n2 = parseInt(b.name.match(/\d+/)?.[0] || 0);
+            return n1 - n2;
         });
 
     for (const file of videos) {
@@ -87,18 +110,30 @@ async function loadVideo(path, containerId) {
         const card = document.createElement("div");
         card.className = "video-card";
 
-        card.innerHTML = `
-            <video src="${videoUrl}" controls muted preload="none"></video>
-            <div>${file.name}</div>
-            <button class="btn-copy">Copy Link</button>
-        `;
+        const img = document.createElement("img");
+        img.className = "thumb";
 
-        card.querySelector(".btn-copy").onclick = () => {
+        const name = document.createElement("div");
+        name.className = "video-name";
+        name.textContent = file.name;
+
+        const btn = document.createElement("button");
+        btn.className = "btn-copy";
+        btn.textContent = "Copy Link";
+
+        btn.onclick = () => {
             navigator.clipboard.writeText(videoUrl);
             showToast("Đã copy video!");
         };
 
+        card.appendChild(img);
+        card.appendChild(name);
+        card.appendChild(btn);
         container.appendChild(card);
+
+        // 🔥 tạo thumbnail từ video
+        const thumb = await createThumbnail(videoUrl);
+        img.src = thumb || "";
     }
 }
 async function loadFiles(path, containerId, type) {
