@@ -59,50 +59,46 @@ async function loadFolders(path, containerId) {
 }
 async function loadVideo(path, containerId) {
     const url = `https://api.github.com/repos/${owner}/${repo}/contents/${path}?ref=${branch}`;
+    
     const res = await fetch(url);
-    const items = await res.json();
+    if (!res.ok) {
+        console.error("API lỗi:", res.status);
+        return;
+    }
 
+    const items = await res.json();
     if (!Array.isArray(items)) return;
 
     const container = document.getElementById(containerId);
+    container.innerHTML = ""; // clear
 
-    for (const item of items) {
-        if (item.type === "dir") {
+    // 🔥 Lọc + sort t1 → t9
+    const videos = items
+        .filter(item => item.type === "file" && item.name.endsWith(".mp4"))
+        .sort((a, b) => {
+            const numA = parseInt(a.name.match(/\d+/)?.[0] || 0);
+            const numB = parseInt(b.name.match(/\d+/)?.[0] || 0);
+            return numA - numB;
+        });
 
-            // Lấy danh sách file trong folder đó
-            const subUrl = `https://api.github.com/repos/${owner}/${repo}/contents/${item.path}?ref=${branch}`;
-            const subRes = await fetch(subUrl);
-            const subItems = await subRes.json();
+    for (const file of videos) {
+        const videoUrl = file.download_url;
 
-            if (!Array.isArray(subItems)) continue;
+        const card = document.createElement("div");
+        card.className = "video-card";
 
-            // Tìm file mp4
-            const videoFile = subItems.find(f => 
-                f.type === "file" && f.name.endsWith(".mp4")
-            );
+        card.innerHTML = `
+            <video src="${videoUrl}" controls muted preload="none"></video>
+            <div>${file.name}</div>
+            <button class="btn-copy">Copy Link</button>
+        `;
 
-            if (!videoFile) continue; // bỏ folder không có video
+        card.querySelector(".btn-copy").onclick = () => {
+            navigator.clipboard.writeText(videoUrl);
+            showToast("Đã copy video!");
+        };
 
-            const videoUrl = videoFile.download_url;
-
-            const card = document.createElement("div");
-            card.className = "folder-card";
-
-            card.innerHTML = `
-                <video class="folder-video" src="${videoUrl}" controls muted></video>
-                <div class="folder-name"><b>${item.name}</b></div>
-                <button class="btn-copy-video">Copy Video</button>
-            `;
-
-            // copy link video
-            card.querySelector(".btn-copy-video").onclick = (e) => {
-                e.stopPropagation();
-                navigator.clipboard.writeText(videoUrl);
-                showToast("Đã copy video!");
-            };
-
-            container.appendChild(card);
-        }
+        container.appendChild(card);
     }
 }
 async function loadFiles(path, containerId, type) {
