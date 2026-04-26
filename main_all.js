@@ -1,8 +1,8 @@
 
-    const owner = "DYMV14256";
+    const owner = "dymv14256";
     const repo = "movie";
     const branch = "main";
-    const path_git = "https://DYMV14256.github.io/movie/";
+    const path_git = "https://dymv14256.github.io/movie/";
 
     function showToast(message) {
     const toast = document.getElementById("toast");
